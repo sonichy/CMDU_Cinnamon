@@ -3,37 +3,80 @@ const Util = imports.misc.util;
 const {GLib, Gio} = imports.gi;
 const PopupMenu = imports.ui.popupMenu;
 const St = imports.gi.St;
-var label;
-var db0 = 0, ub0 = 0, tt0=0, idle0 = 0;
+const Cairo = imports.cairo;
+var label1, label2, area_mem, area_cpu;
+var db0 = 0, ub0 = 0, tt0=0, idle0 = 0, mp, cp;
 
 function MyApplet(orientation, panel_height, instance_id) {
     this._init(orientation, panel_height, instance_id);
 }
 
 MyApplet.prototype = {
-    __proto__: Applet.TextApplet.prototype,
+    __proto__: Applet.Applet.prototype,
 
     _init: function(orientation, panel_height, instance_id) {
         Applet.TextApplet.prototype._init.call(this, orientation, panel_height, instance_id);        
-        //global.logError('sonichy');        
-        this.set_applet_label("↑ 0KB/s\n↓ 0KB/s");        
+        //global.logError('sonichy');
+        area_mem = new St.DrawingArea();
+        area_mem.width = 3;
+        area_mem.height = panel_height;
+        area_mem.connect('repaint', this.onRepaint_mem);
+        this.actor.add(area_mem);
+        
+        label1 = new St.Label();
+        label1.set_text("↑ 0KB/s\n↓ 0KB/s");
+        this.actor.add(label1);  // actor = St.BoxLayout
+        
+        area_cpu = new St.DrawingArea();
+        area_cpu.width = 3;
+        area_cpu.height = panel_height;
+        area_cpu.connect('repaint', this.onRepaint_cpu);
+        this.actor.add(area_cpu);
+        
+        this._applet_tooltip._tooltip.set_style("text-align:left");
         this.menuManager = new PopupMenu.PopupMenuManager(this);        
         this.menu = new Applet.AppletPopupMenu(this, orientation);
         this.menuManager.addMenu(this.menu);
-        label = new St.Label();
-        this.menu.addActor(label);
+        label2 = new St.Label();
+        this.menu.addActor(label2);
         
         //https://gjs.guide/guides/gjs/asynchronous-programming.html
         //GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, this.update); //real name function do not run
           
         GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {        		
         	 var net = this.net();        	   	 
-         	 this.set_applet_label("↑ " + this.B2G(net.ubs) + "/s\n↓ " + this.B2G(net.dbs) + "/s");
-         	 var s = _("Uptime: " + this.uptime() + "\nCPU: " + this.cpu() + "%\nMem: " + this.mem() + "\nUp: " + this.B2G(net.ub) + "\nDown: "+ this.B2G(net.db));
+        	 label1.set_text("↑ " + this.B2G(net.ubs) + "/s\n↓ " + this.B2G(net.dbs) + "/s");
+        	 this.cpu();
+         	 var s = _("Uptime: " + this.uptime() + "\nCPU: " + cp + "%\nMem: " + this.mem() + "\nUp: " + this.B2G(net.ub) + "\nDown: "+ this.B2G(net.db));
 		 	 this.set_applet_tooltip(s); //resize flash
-		 	 label.set_text(s);
+		 	 label2.set_text(s);
+ 		 	 area_mem.queue_repaint();
+		 	 area_cpu.queue_repaint();
             return true; // loop
     	 });    	  
+    },
+    
+    onRepaint_mem: function (area) {
+        let cr = area.get_context();
+        cr.setLineWidth(3);
+        if (mp > 90)
+            cr.setSourceRGBA(1, 0, 0, 1);
+        else
+            cr.setSourceRGBA(1, 1, 1, 1);
+        cr.moveTo(0, area.height);
+        cr.lineTo(0, area.height * (100 - mp) / 100);
+        cr.stroke();
+        cr.$dispose();
+    },
+    
+    onRepaint_cpu: function (area) {
+        let cr = area.get_context();
+        cr.setLineWidth(3);        
+        cr.setSourceRGBA(1, 1, 1, 1);
+        cr.moveTo(0, area.height);
+        cr.lineTo(0, area.height * (100 - cp) / 100);
+        cr.stroke();
+        cr.$dispose();
     },
     
     uptime: function() {
@@ -43,6 +86,8 @@ MyApplet.prototype = {
         var t = contents.toString().split(' ');        
         var tt = Number(t[0]);
         var h = ~~(tt/3600);
+        if (h < 10)
+            h = '0' + h;
         var m = ~~(tt%3600/60);
         if (m < 10)
             m = '0' + m;
@@ -61,13 +106,11 @@ MyApplet.prototype = {
         var tt = 0;
         for (var i=1; i<ca.length; i++) {            
             tt += Number(ca[i]);
-         }
-        global.log(tt);
+         }        
         var idle = Number(ca[4]);
-        var p = ~~(((tt - tt0) - (idle - idle0)) * 100 / (tt - tt0));
+        cp = ~~(((tt - tt0) - (idle - idle0)) * 100 / (tt - tt0));
         tt0 = tt;
         idle0 = idle;
-        return p;
     },
     
     mem: function() {
@@ -79,8 +122,8 @@ MyApplet.prototype = {
         var mt = Number(MT[1]);
         var mf = Number(MF[1]);
         var mu = mt - mf;
-        var p = ~~(mu / mt * 100);
-        var m = this.B2G(mu*1024) + ' / '+ this.B2G(mt*1024) + ' = ' + p + '%';
+        mp = ~~(mu / mt * 100);
+        var m = this.B2G(mu*1024) + ' / '+ this.B2G(mt*1024) + ' = ' + mp + '%';
         return m;
     },
     
