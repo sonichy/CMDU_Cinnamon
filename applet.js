@@ -72,7 +72,10 @@ MyApplet.prototype = {
     onRepaint_cpu: function (area) {
         let cr = area.get_context();
         cr.setLineWidth(3);        
-        cr.setSourceRGBA(1, 1, 1, 1);
+        if (cp > 90)
+            cr.setSourceRGBA(1, 0, 0, 1);
+        else
+            cr.setSourceRGBA(1, 1, 1, 1);
         cr.moveTo(0, area.height);
         cr.lineTo(0, area.height * (100 - cp) / 100);
         cr.stroke();
