@@ -85,6 +85,14 @@ MyApplet.prototype = {
         const [, contents, etag] = file.load_contents(null);
         var t = contents.toString().split(' ');        
         var tt = Number(t[0]);
+        var d = 0;
+        if (tt > 86400) {
+            d = tt / 86400;
+            tt -= d * 86400;
+         }
+        var ds = "";
+        if (d > 0)
+            ds = d + "day";
         var h = ~~(tt/3600);
         if (h < 10)
             h = '0' + h;
@@ -94,7 +102,7 @@ MyApplet.prototype = {
         var s = ~~(tt%3600%60);
         if (s < 10)
             s = '0' + s;
-        var hms = h + ':' + m + ':' + s;
+        var hms = ds + h + ':' + m + ':' + s;
         return hms;
     },
     
